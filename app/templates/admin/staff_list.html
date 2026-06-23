@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Staff Records{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">👥 Staff Records</div>
+    <div class="page-subtitle">Manage clinic personnel and their payroll configurations.</div>
+  </div>
+  <a href="{{ url_for('admin.staff_add') }}" class="btn btn-primary">➕ Add Staff</a>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    {% if staff %}
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Name</th><th>Staff No.</th><th>Position</th>
+          <th>Type</th><th>Rate</th><th>Status</th><th>QR Badge</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in staff %}
+        <tr>
+          <td class="text-muted">{{ s.id }}</td>
+          <td>
+            <strong>{{ s.last_name }}, {{ s.first_name }}</strong>
+            {% if s.email %}<br><span class="text-muted">{{ s.email }}</span>{% endif %}
+          </td>
+          <td class="text-mono">{{ s.staff_no }}</td>
+          <td>{{ s.position }}</td>
+          <td>{{ s.employment_type.replace('_',' ').title() }}</td>
+          <td>
+            {% if s.monthly_rate and s.monthly_rate > 0 %}
+              ₱{{ "%.2f"|format(s.monthly_rate) }}/mo
+            {% elif s.daily_rate and s.daily_rate > 0 %}
+              ₱{{ "%.2f"|format(s.daily_rate) }}/day
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if s.employment_status == 'active' %}
+              <span class="badge badge-success">Active</span>
+            {% elif s.employment_status == 'inactive' %}
+              <span class="badge badge-warning">Inactive</span>
+            {% else %}
+              <span class="badge badge-danger">Terminated</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if s.qr_token and not s.qr_revoked %}
+              <span class="badge badge-teal">✓ Issued</span>
+            {% elif s.qr_revoked %}
+              <span class="badge badge-danger">Revoked</span>
+            {% else %}
+              <span class="badge badge-secondary">None</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('admin.staff_edit', staff_id=s.id) }}"
+               class="btn btn-outline btn-sm">Edit</a>
+            <a href="{{ url_for('admin.staff_qr', staff_id=s.id) }}"
+               class="btn btn-primary btn-sm">QR</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="big-icon">👥</div>
+      No staff records yet. <a href="{{ url_for('admin.staff_add') }}">Add a staff member</a>.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

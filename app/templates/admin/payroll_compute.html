@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block title %}Compute Payroll{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">⚙️ Compute Payroll</div>
+    <div class="page-subtitle">Calculate salary from verified attendance records.</div>
+  </div>
+  <a href="{{ url_for('admin.payroll_list') }}" class="btn btn-secondary">📋 Payroll Records</a>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr {{ '1.2fr' if preview else '' }}; gap:1.25rem;">
+
+  <!-- Compute Form -->
+  <div class="card">
+    <div class="card-header">📊 Computation Parameters</div>
+    <div class="card-body">
+      <form method="post" id="compute-form">
+        <div class="form-group">
+          <label>Staff Member </label>
+          <select name="staff_id" required>
+            <option value="">— Select Staff —</option>
+            {% for s in all_staff %}
+            <option value="{{ s.id }}"
+              {{ 'selected' if form_data.get('staff_id') == s.id|string }}>
+              {{ s.name }} ({{ s.position }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Pay Period Start</label>
+            <input type="date" name="period_start"
+                   value="{{ form_data.get('period_start', '') }}" required/>
+          </div>
+          <div class="form-group">
+            <label>Pay Period End</label>
+            <input type="date" name="period_end"
+                   value="{{ form_data.get('period_end', '') }}" required/>
+          </div>
+        </div>
+
+        <hr class="divider"/>
+        <p class="text-muted mb-2" style="font-size:0.8rem;">Optional adjustments:</p>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Additional Allowances (₱)</label>
+            <input type="number" name="allowances" step="0.01" min="0"
+                   value="{{ form_data.get('allowances', '0') }}"
+                   placeholder="0.00"/>
+          </div>
+          <div class="form-group">
+            <label>Allowances Note</label>
+            <input type="text" name="allowances_note"
+                   value="{{ form_data.get('allowances_note', '') }}"
+                   placeholder="e.g. Transportation allowance"/>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Other Deductions (₱)</label>
+            <input type="number" name="other_deductions" step="0.01" min="0"
+                   value="{{ form_data.get('other_deductions', '0') }}"
+                   placeholder="0.00"/>
+          </div>
+          <div class="form-group">
+            <label>Deduction Note</label>
+            <input type="text" name="other_deductions_note"
+                   value="{{ form_data.get('other_deductions_note', '') }}"
+                   placeholder="e.g. Cash advance"/>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:0.75rem; margin-top:0.5rem;">
+          <button type="submit" name="action" value="preview"
+                  class="btn btn-outline" style="flex:1;">
+            👁 Preview
+          </button>
+          <button type="submit" name="action" value="save"
+                  class="btn btn-primary" style="flex:1;">
+            💾 Compute & Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  {% if preview %}
+  <div class="card">
+    <div class="card-header">
+      📄 Payroll Preview — {{ preview._staff_name }}
+    </div>
+    <div class="card-body">
+      <div style="background:var(--teal-lt); border-radius:8px; padding:1rem; margin-bottom:1rem;">
+        <div style="font-size:0.8rem; color:var(--gray-dk);">Pay Period</div>
+        <strong>{{ preview.pay_period_start }} — {{ preview.pay_period_end }}</strong>
+      </div>
+
+      <table style="width:100%; font-size:0.875rem; border-collapse:collapse;">
+        <tr>
+          <td style="padding:6px 0; color:var(--gray-dk);">Days Worked</td>
+          <td style="text-align:right;">{{ preview.total_days_worked }} days</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0; color:var(--gray-dk);">Hours Worked</td>
+          <td style="text-align:right;">{{ "%.2f"|format(preview.total_hours_worked) }} hrs</td>
+        </tr>
+        <tr style="border-top:1px solid var(--border);">
+          <td style="padding:8px 0; font-weight:600;">Gross Pay</td>
+          <td style="text-align:right; font-weight:600;">₱{{ "%.2f"|format(preview.gross_pay) }}</td>
+        </tr>
+        {% if preview.allowances > 0 %}
+        <tr>
+          <td style="padding:4px 0; color:var(--gray-dk);">  Incl. Allowances</td>
+          <td style="text-align:right;">₱{{ "%.2f"|format(preview.allowances) }}</td>
+        </tr>
+        {% endif %}
+        <tr><td colspan="2"><hr class="divider" style="margin:6px 0;"/></td></tr>
+        {% if preview.sss_deduction > 0 or preview.philhealth_deduction > 0 or preview.pagibig_deduction > 0 %}
+        <tr>
+          <td style="padding:4px 0; color:var(--gray-dk);">SSS (40% employee share)</td>
+          <td style="text-align:right; color:var(--danger);">- ₱{{ "%.2f"|format(preview.sss_deduction) }}</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 0; color:var(--gray-dk);">PhilHealth (50% employee share)</td>
+          <td style="text-align:right; color:var(--danger);">- ₱{{ "%.2f"|format(preview.philhealth_deduction) }}</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 0; color:var(--gray-dk);">Pag-IBIG (50% employee share)</td>
+          <td style="text-align:right; color:var(--danger);">- ₱{{ "%.2f"|format(preview.pagibig_deduction) }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="2" style="padding:4px 0; font-size:0.78rem; color:var(--gray-dk); font-style:italic;">
+            No statutory deductions this cutoff (SSS/PhilHealth/Pag-IBIG are taken in full only on the second/last cutoff of the month).
+          </td>
+        </tr>
+        {% endif %}
+        {% if preview.other_deductions > 0 %}
+        <tr>
+          <td style="padding:4px 0; color:var(--gray-dk);">Other Deductions</td>
+          <td style="text-align:right; color:var(--danger);">- ₱{{ "%.2f"|format(preview.other_deductions) }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td style="padding:6px 0; color:var(--gray-dk);">Total Deductions</td>
+          <td style="text-align:right; color:var(--danger);">- ₱{{ "%.2f"|format(preview.total_deductions) }}</td>
+        </tr>
+        <tr style="border-top:2px solid var(--teal); background:var(--teal-lt);">
+          <td style="padding:10px 8px; font-weight:700; font-size:1.05rem; color:var(--teal-dk);">NET PAY</td>
+          <td style="text-align:right; font-weight:700; font-size:1.1rem; color:var(--teal); padding:10px 8px;">
+            ₱{{ "%.2f"|format(preview.net_pay) }}
+          </td>
+        </tr>
+      </table>
+
+      <div class="mt-2" style="font-size:0.8rem; color:var(--gray-dk);">
+        ℹ️ This is a preview. Click "Compute & Save" to save and proceed to approval.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}

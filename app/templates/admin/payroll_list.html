@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Payroll Records{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">💰 Payroll Records</div>
+    <div class="page-subtitle">All computed payroll records across pay periods.</div>
+  </div>
+  <a href="{{ url_for('admin.payroll_compute') }}" class="btn btn-primary">⚙️ Compute New</a>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    {% if records %}
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Staff</th><th>Pay Period</th>
+          <th class="text-right">Gross</th><th class="text-right">Deductions</th>
+          <th class="text-right">Net Pay</th><th>Status</th><th>Payslip</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td class="text-muted">{{ r.id }}</td>
+          <td>
+            <strong>{{ r.staff_name }}</strong><br>
+            <span class="text-muted">{{ r.position }}</span>
+          </td>
+          <td>{{ r.pay_period_start }}<br><span class="text-muted">→ {{ r.pay_period_end }}</span></td>
+          <td class="text-right">₱{{ "%.2f"|format(r.gross_pay) }}</td>
+          <td class="text-right" style="color:var(--danger);">-₱{{ "%.2f"|format(r.total_deductions) }}</td>
+          <td class="text-right"><strong>₱{{ "%.2f"|format(r.net_pay) }}</strong></td>
+          <td>
+            {% if r.status == 'draft' %}
+              <span class="badge badge-secondary">Draft</span>
+            {% elif r.status == 'approved' %}
+              <span class="badge badge-warning">Approved</span>
+            {% else %}
+              <span class="badge badge-success">Released</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.payslip_id and r.is_released %}
+              <span class="badge badge-success">✓ Issued</span>
+            {% elif r.payslip_id %}
+              <span class="badge badge-info">Generated</span>
+            {% else %}
+              <span class="badge badge-secondary">None</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('admin.payroll_detail', payroll_id=r.id) }}"
+               class="btn btn-outline btn-sm">View</a>
+            <form method="post" action="{{ url_for('admin.payroll_delete', payroll_id=r.id) }}"
+                  style="display:inline;"
+                  onsubmit="return confirm('Remove this payroll record? This cannot be undone, but will be logged in the System Audit Log.');">
+              <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="big-icon">💰</div>
+      No payroll records yet. <a href="{{ url_for('admin.payroll_compute') }}">Compute payroll</a>.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+{% block title %}Payroll #{{ payroll.id }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">💰 Payroll #{{ payroll.id }}</div>
+    <div class="page-subtitle">
+      {{ payroll.staff_name }} — {{ payroll.pay_period_start }} to {{ payroll.pay_period_end }}
+    </div>
+  </div>
+  <div style="display:flex; gap:0.5rem;">
+    <a href="{{ url_for('admin.payroll_list') }}" class="btn btn-secondary">← Back</a>
+    <a href="{{ url_for('admin.payslip_pdf', payroll_id=payroll.id) }}"
+       class="btn btn-outline">⬇ Download PDF</a>
+    <form method="post" action="{{ url_for('admin.payroll_delete', payroll_id=payroll.id) }}"
+          onsubmit="return confirm('Remove this payroll record? This cannot be undone, but will be logged in the System Audit Log.');">
+      <button type="submit" class="btn btn-danger">🗑️ Remove</button>
+    </form>
+  </div>
+</div>
+
+<!-- Status Banner -->
+<div class="card" style="
+  border-left: 5px solid
+  {% if payroll.status == 'draft' %}var(--gray-dk)
+  {% elif payroll.status == 'approved' %}var(--warning)
+  {% else %}var(--accent){% endif %};">
+  <div class="card-body" style="display:flex; align-items:center; justify-content:space-between;">
+    <div>
+      Status:
+      {% if payroll.status == 'draft' %}
+        <span class="badge badge-secondary">📝 Draft — Awaiting Approval</span>
+      {% elif payroll.status == 'approved' %}
+        <span class="badge badge-warning">✅ Approved — Ready for Payslip</span>
+      {% else %}
+        <span class="badge badge-success">🎉 Released — Payslip Issued</span>
+      {% endif %}
+    </div>
+    <div style="display:flex; gap:0.5rem;">
+      {% if payroll.status == 'draft' %}
+        <form method="post" action="{{ url_for('admin.payroll_approve', payroll_id=payroll.id) }}"
+              onsubmit="return confirm('Approve this payroll record?')">
+          <button type="submit" class="btn btn-success">✅ Approve Payroll</button>
+        </form>
+      {% elif payroll.status == 'approved' %}
+        <form method="post" action="{{ url_for('admin.payslip_generate', payroll_id=payroll.id) }}"
+              onsubmit="return confirm('Generate and release payslip to staff?')">
+          <button type="submit" class="btn btn-primary">📄 Generate & Release Payslip</button>
+        </form>
+      {% elif payroll.status == 'released' %}
+        <form method="post" action="{{ url_for('admin.payslip_generate', payroll_id=payroll.id) }}">
+          <button type="submit" class="btn btn-outline btn-sm">🔄 Re-release Payslip</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div style="display:grid; grid-template-columns:1.5fr 1fr; gap:1.25rem;">
+
+  <!-- Earnings & Deductions -->
+  <div>
+    <div class="card">
+      <div class="card-header">👤 Staff & Period</div>
+      <div class="card-body">
+        <table style="width:100%; font-size:0.875rem;">
+          <tr>
+            <td class="text-muted" style="padding:5px 0; width:40%;">Name</td>
+            <td><strong>{{ payroll.staff_name }}</strong></td>
+          </tr>
+          <tr>
+            <td class="text-muted" style="padding:5px 0;">Position</td>
+            <td>{{ payroll.position }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted" style="padding:5px 0;">Employment Type</td>
+            <td>{{ payroll.employment_type.replace('_',' ').title() }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted" style="padding:5px 0;">Pay Period</td>
+            <td>{{ payroll.pay_period_start }} – {{ payroll.pay_period_end }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted" style="padding:5px 0;">Days Worked</td>
+            <td><strong>{{ payroll.total_days_worked }} days</strong></td>
+          </tr>
+          <tr>
+            <td class="text-muted" style="padding:5px 0;">Hours Worked</td>
+            <td><strong>{{ "%.2f"|format(payroll.total_hours_worked) }} hrs</strong></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">💵 Earnings</div>
+      <div class="card-body">
+        <table style="width:100%; font-size:0.875rem; border-collapse:collapse;">
+          <tr style="background:var(--teal-lt);">
+            <th style="padding:8px; text-align:left;">Item</th>
+            <th style="padding:8px; text-align:right;">Amount</th>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;">Basic Salary
+              <span class="text-muted">
+                ({{ payroll.total_days_worked }} days
+                {% if payroll.monthly_rate and payroll.monthly_rate > 0 %}
+                  × ₱{{ "%.2f"|format(payroll.monthly_rate / 26) }}/day equiv., ₱{{ "%.2f"|format(payroll.monthly_rate) }}/mo
+                {% elif payroll.daily_rate > 0 %}
+                  × ₱{{ "%.2f"|format(payroll.daily_rate) }}/day
+                {% endif %})
+              </span>
+            </td>
+            <td style="text-align:right;">₱{{ "%.2f"|format(payroll.gross_pay - (payroll.allowances or 0)) }}</td>
+          </tr>
+          {% if payroll.allowances and payroll.allowances > 0 %}
+          <tr>
+            <td style="padding:8px 0;">Allowances ({{ payroll.allowances_note or 'Other' }})</td>
+            <td style="text-align:right;">₱{{ "%.2f"|format(payroll.allowances) }}</td>
+          </tr>
+          {% endif %}
+          <tr style="border-top:2px solid var(--teal); font-weight:700; background:var(--teal-lt);">
+            <td style="padding:8px;">GROSS PAY</td>
+            <td style="text-align:right; padding:8px; color:var(--teal);">₱{{ "%.2f"|format(payroll.gross_pay) }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">📉 Deductions</div>
+      <div class="card-body">
+        <table style="width:100%; font-size:0.875rem; border-collapse:collapse;">
+          <tr style="background:var(--teal-lt);">
+            <th style="padding:8px; text-align:left;">Item</th>
+            <th style="padding:8px; text-align:right; width:40%;">Rate</th>
+            <th style="padding:8px; text-align:right;">Amount</th>
+          </tr>
+          {% set is_last_cutoff = payroll.sss_deduction > 0 or payroll.philhealth_deduction > 0 or payroll.pagibig_deduction > 0 %}
+          {% for item, share_pct, amount_key in [
+            ('SSS', '40%', 'sss_deduction'),
+            ('PhilHealth', '50%', 'philhealth_deduction'),
+            ('Pag-IBIG', '50%', 'pagibig_deduction'),
+          ] %}
+          <tr>
+            <td style="padding:7px 0;">{{ item }}</td>
+            <td style="text-align:right;">{{ share_pct }} employee share</td>
+            <td style="text-align:right; color:var(--danger);">-₱{{ "%.2f"|format(payroll[amount_key] or 0) }}</td>
+          </tr>
+          {% endfor %}
+          {% if not is_last_cutoff %}
+          <tr>
+            <td colspan="3" style="padding:4px 0; font-size:0.78rem; color:var(--text-muted); font-style:italic;">
+              No statutory deductions this cutoff — they're taken in full on the second/last cutoff of the month.
+            </td>
+          </tr>
+          {% endif %}
+          {% if payroll.other_deductions and payroll.other_deductions > 0 %}
+          <tr>
+            <td style="padding:7px 0;">Other ({{ payroll.other_deductions_note or '—' }})</td>
+            <td style="text-align:right;">—</td>
+            <td style="text-align:right; color:var(--danger);">-₱{{ "%.2f"|format(payroll.other_deductions) }}</td>
+          </tr>
+          {% endif %}
+          <tr style="border-top:1px solid var(--border); font-weight:600;">
+            <td style="padding:7px 0;">Total Deductions</td>
+            <td></td>
+            <td style="text-align:right; color:var(--danger);">-₱{{ "%.2f"|format(payroll.total_deductions) }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Net Pay Summary -->
+  <div>
+    <div class="card">
+      <div class="card-body" style="text-align:center; padding:2rem 1.5rem;">
+        <div style="font-size:0.85rem; color:var(--gray-dk); margin-bottom:0.5rem;">Net Pay</div>
+        <div style="font-size:2.5rem; font-weight:800; color:var(--teal);">
+          ₱{{ "%.2f"|format(payroll.net_pay) }}
+        </div>
+        <div style="font-size:0.8rem; color:var(--gray-dk); margin-top:0.5rem;">
+          {{ payroll.pay_period_start }} — {{ payroll.pay_period_end }}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">📋 Summary</div>
+      <div class="card-body">
+        <table style="width:100%; font-size:0.875rem;">
+          <tr>
+            <td class="text-muted" style="padding:5px 0;">Gross Pay</td>
+            <td style="text-align:right;">₱{{ "%.2f"|format(payroll.gross_pay) }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted" style="padding:5px 0;">Total Deductions</td>
+            <td style="text-align:right; color:var(--danger);">-₱{{ "%.2f"|format(payroll.total_deductions) }}</td>
+          </tr>
+          <tr style="border-top:2px solid var(--teal); font-weight:700;">
+            <td style="padding:8px 0; color:var(--teal);">NET PAY</td>
+            <td style="text-align:right; color:var(--teal);">₱{{ "%.2f"|format(payroll.net_pay) }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    {% if payroll.payslip_id %}
+    <div class="card">
+      <div class="card-header">📄 Payslip</div>
+      <div class="card-body">
+        <p class="text-muted mb-2">
+          {% if payroll.is_released %}Payslip released to staff.{% else %}Payslip generated (not yet released).{% endif %}
+        </p>
+        <a href="{{ url_for('admin.payslip_pdf', payroll_id=payroll.id) }}"
+           class="btn btn-primary" style="width:100%;">⬇ Download PDF Payslip</a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

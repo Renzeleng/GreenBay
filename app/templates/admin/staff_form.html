@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if staff else 'Add' }} Staff{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">{{ '✏️ Edit Staff' if staff else '➕ Add Staff Member' }}</div>
+    <div class="page-subtitle">{{ 'Update employment and payroll details.' if staff else 'Create a new staff account and profile.' }}</div>
+  </div>
+  <a href="{{ url_for('admin.staff_list') }}" class="btn btn-secondary">← Back to List</a>
+</div>
+
+<form method="post">
+  <!-- Identity & Attendance PIN -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-header-label">
+        <span class="card-header-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3.5a2.5 2.5 0 0 1 2.45 2h1.55A2.5 2.5 0 0 1 18.5 8v9A2.5 2.5 0 0 1 16 19.5H8A2.5 2.5 0 0 1 5.5 17V8A2.5 2.5 0 0 1 8 5.5h1.55A2.5 2.5 0 0 1 12 3.5Z"/>
+            <path d="M10 10h4M10 13h4M10 16h2.5"/>
+          </svg>
+        </span>
+        <span>ID &amp; Pin</span>
+      </span>
+    </div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Staff No.</label>
+          <input type="text" name="staff_no"
+                 value="{{ form.get('staff_no', staff.staff_no if staff else suggested_staff_no) }}"
+                 placeholder="e.g. GB-0001" required/>
+          <small class="text-muted">
+          </small>
+        </div>
+        <div class="form-group">
+          <label>Employment Status</label>
+          <select name="employment_status">
+            {% for es in ['active','inactive','terminated'] %}
+            <option value="{{ es }}" {{ 'selected' if (staff and staff.employment_status == es) or (not staff and es=='active') }}>
+              {{ es.title() }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>{{ 'Reset Attendance PIN' if staff else 'Attendance PIN' }}</label>
+          <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+                 name="{{ 'new_pin' if staff else 'pin' }}"
+                 placeholder="{{ 'Leave blank to keep current PIN' if staff else '4–6 digit PIN' }}"
+                 {{ '' if staff else 'required' }}/>
+        </div>
+        {% if staff %}
+        <div class="form-group">
+          <label>QR Badge</label>
+          <a href="{{ url_for('admin.staff_qr', staff_id=staff.id) }}" class="btn btn-secondary" style="display:inline-block; margin-top:.2rem;">
+            🖨️ View / Print QR Badge
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Personal Info -->
+  <div class="card">
+    <div class="card-header">👤 Personal Information</div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" name="first_name"
+                 value="{{ form.get('first_name', staff.first_name if staff else '') }}" required/>
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" name="last_name"
+                 value="{{ form.get('last_name', staff.last_name if staff else '') }}" required/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email"
+                 value="{{ form.get('email', staff.email if staff else '') }}"/>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" name="phone"
+                 value="{{ form.get('phone', staff.phone if staff else '') }}"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Employment -->
+  <div class="card">
+    <div class="card-header">💼 Employment Details</div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Position</label>
+          <input type="text" name="position"
+                 value="{{ form.get('position', staff.position if staff else '') }}"
+                 placeholder="e.g. Occupational Therapist" required/>
+        </div>
+        <div class="form-group">
+          <label>Employment Type</label>
+          <select name="employment_type">
+            {% for et in ['full_time','part_time','contractual'] %}
+            <option value="{{ et }}" {{ 'selected' if form.get('employment_type', staff.employment_type if staff else 'full_time') == et }}>
+              {{ et.replace('_',' ').title() }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date Hired</label>
+          <input type="date" name="date_hired"
+                 value="{{ form.get('date_hired', staff.date_hired if staff else '') }}"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Salary Config -->
+  <div class="card">
+    <div class="card-header">💰 Salary Configuration</div>
+    <div class="card-body">
+      <p class="text-muted mb-2">
+        Pay is computed bi-weekly (twice a month). Set either Daily Rate OR
+        Monthly Rate — Monthly takes precedence if both are set.
+      </p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Daily Rate (₱)</label>
+          <input type="number" name="daily_rate" step="0.01" min="0"
+                 value="{{ form.get('daily_rate', staff.daily_rate if staff else '0') }}"/>
+        </div>
+        <div class="form-group">
+          <label>Monthly Rate (₱)</label>
+          <input type="number" name="monthly_rate" step="0.01" min="0"
+                 value="{{ form.get('monthly_rate', staff.monthly_rate if staff else '0') }}"/>
+        </div>
+      </div>
+
+      {% if staff %}
+      <hr class="divider"/>
+      <p class="text-muted mb-2">
+        Statutory deductions — TOTAL monthly contribution amounts (₱). The
+        employee's share (SSS 40%, PhilHealth 50%, Pag-IBIG 50%) is
+        deducted in full only on the second/last bi-weekly cutoff of each
+        month. These default to the clinic's standard amounts; override
+        here only if this staff member's contribution differs.
+      </p>
+      <div class="form-row-4">
+        <div class="form-group">
+          <label>SSS Monthly Total (₱)</label>
+          <input type="number" name="sss_monthly_total" step="0.01" min="0"
+                 value="{{ form.get('sss_monthly_total', staff.sss_monthly_total) }}"/>
+          <small class="text-muted">Employee pays 40%</small>
+        </div>
+        <div class="form-group">
+          <label>PhilHealth Monthly Total (₱)</label>
+          <input type="number" name="philhealth_monthly_total" step="0.01" min="0"
+                 value="{{ form.get('philhealth_monthly_total', staff.philhealth_monthly_total) }}"/>
+          <small class="text-muted">Employee pays 50%</small>
+        </div>
+        <div class="form-group">
+          <label>Pag-IBIG Monthly Total (₱)</label>
+          <input type="number" name="pagibig_monthly_total" step="0.01" min="0"
+                 value="{{ form.get('pagibig_monthly_total', staff.pagibig_monthly_total) }}"/>
+          <small class="text-muted">Employee pays 50%</small>
+        </div>
+      </div>
+      {% else %}
+      <hr class="divider"/>
+      <p class="text-muted" style="font-size:0.85rem;">
+        Statutory deductions (SSS, PhilHealth, Pag-IBIG) will use the
+        clinic's standard amounts by default. You can override them for
+        this staff member afterward, from their Staff Details page.
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+    <a href="{{ url_for('admin.staff_list') }}" class="btn btn-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary btn-lg">
+      {{ '💾 Save Changes' if staff else '➕ Create Staff Member' }}
+    </button>
+  </div>
+</form>
+
+{% endblock %}

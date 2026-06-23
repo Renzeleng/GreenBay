@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+{% block title %}Scan Your ID — Green Bay{% endblock %}
+
+{% block no_nav_content %}
+<style>
+  .cam-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0e1614;
+    padding: 1.5rem;
+  }
+  .cam-card {
+    background: #fff;
+    border-radius: 24px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 460px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+  }
+  .cam-header { text-align: center; margin-bottom: 1.25rem; }
+  .cam-header h1 {
+    font-size: 1.25rem; font-weight: 800; color: #1a2b2b; margin: 0 0 .25rem;
+  }
+  .cam-header p { color: #7c8a8a; font-size: .88rem; margin: 0; }
+
+  .scan-type-badge {
+    display: inline-block;
+    margin-top: .6rem;
+    padding: .3rem .85rem;
+    border-radius: 20px;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+  }
+  .scan-type-badge.time_in  { background: #e8f8ee; color: #1c7a4d; }
+  .scan-type-badge.time_out { background: #fdecec; color: #c0392b; }
+
+  .video-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #000;
+    border-radius: 18px;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+  }
+  .video-wrap video, .video-wrap canvas {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .video-wrap canvas { z-index: 2; pointer-events: none; }
+
+  .scan-frame {
+    position: absolute;
+    top: 12%; left: 12%; right: 12%; bottom: 12%;
+    border: 3px solid rgba(255,255,255,0.55);
+    border-radius: 16px;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .scan-frame::before, .scan-frame::after {
+    content: '';
+    position: absolute;
+    width: 28px; height: 28px;
+    border-color: #28e07a;
+    border-style: solid;
+    border-width: 0;
+  }
+
+  .cam-status {
+    text-align: center;
+    padding: .8rem 1rem;
+    border-radius: 12px;
+    font-size: .9rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  .cam-status.waiting   { background: #f4f6f8; color: #5c6b6b; }
+  .cam-status.found     { background: #e8f8ee; color: #1c7a4d; }
+  .cam-status.error     { background: #fdecec; color: #c0392b; }
+  .cam-status.success   { background: #e8f8ee; color: #1c7a4d; }
+
+  .cam-actions { display: flex; gap: .75rem; }
+  .cam-cancel-btn {
+    flex: 1;
+    padding: .85rem;
+    background: #f4f6f8;
+    color: #5c6b6b;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: .92rem;
+    text-decoration: none;
+    text-align: center;
+  }
+  .cam-retry-btn {
+    flex: 1;
+    padding: .85rem;
+    background: linear-gradient(135deg, #28b56b 0%, #1f9d5e 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: .92rem;
+    cursor: pointer;
+    display: none;
+  }
+
+  .staff-chip {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    background: #fafbfb;
+    border: 1px solid #ecefef;
+    border-radius: 12px;
+    padding: .65rem .9rem;
+    margin-bottom: 1rem;
+  }
+  .staff-chip .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: #1f9d5e;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .85rem;
+    flex-shrink: 0;
+  }
+  .staff-chip .name { font-weight: 700; font-size: .9rem; color: #1a2b2b; }
+  .staff-chip .role { font-size: .78rem; color: #7c8a8a; }
+</style>
+
+<div class="cam-page">
+  <div class="cam-card">
+    <div class="cam-header">
+      <h1>Present Your QR ID Badge</h1>
+      <p>Hold your badge steady inside the frame</p>
+      <span class="scan-type-badge {{ scan_type }}">
+        {{ 'TIME IN' if scan_type == 'time_in' else 'TIME OUT' }}
+      </span>
+    </div>
+
+    <div class="staff-chip">
+      <div class="avatar">{{ staff.first_name[0] }}{{ staff.last_name[0] }}</div>
+      <div>
+        <div class="name">{{ staff.first_name }} {{ staff.last_name }}</div>
+        <div class="role">{{ staff.position }} · {{ staff.staff_no }}</div>
+      </div>
+    </div>
+
+    <div class="video-wrap" id="videoWrap">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div class="scan-frame"></div>
+    </div>
+
+    <div class="cam-status waiting" id="statusBox">Starting camera…</div>
+
+    <div class="cam-actions">
+      <a href="{{ url_for('scan.cancel') }}" class="cam-cancel-btn" id="cancelBtn">Cancel</a>
+      <button class="cam-retry-btn" id="retryBtn" onclick="location.reload()">Try Again</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"
+        onerror="window.__jsQRLoadFailed = true;"></script>
+<script>
+(function () {
+  const EXPECTED_TOKEN = {{ expected_token | tojson }};
+  const video      = document.getElementById('video');
+  const overlay    = document.getElementById('overlay');
+  const statusBox  = document.getElementById('statusBox');
+  const cancelBtn  = document.getElementById('cancelBtn');
+  const retryBtn   = document.getElementById('retryBtn');
+  const ctx        = overlay.getContext('2d', { willReadFrequently: true });
+
+  let stream = null;
+  let scanning = true;
+  let rafId = null;
+  let canvasSized = false;
+  let lastDecodeAt = 0;
+  let decodeAttempts = 0;
+  let watchdogId = null;
+  const DECODE_INTERVAL_MS = 200; // ~5 decode attempts/sec — plenty for a held-up badge, easy on the CPU
+
+  function setStatus(text, cls) {
+    statusBox.textContent = text;
+    statusBox.className = 'cam-status ' + cls;
+  }
+
+  function stopCamera() {
+    scanning = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    if (watchdogId) clearTimeout(watchdogId);
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+  }
+
+  async function startCamera() {
+    // If the jsQR library failed to load (CDN blocked, offline, network
+    // hiccup, etc.) we'd otherwise open the camera and then silently die
+    // on the first decode attempt, which looks exactly like a frozen
+    // camera with no feedback at all. Fail loudly and offer a retry
+    // instead.
+    if (window.__jsQRLoadFailed || typeof window.jsQR !== 'function') {
+      setStatus('Scanner failed to load (check internet connection on this device), then tap Try Again.', 'error');
+      retryBtn.style.display = 'block';
+      return;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } },
+        audio: false
+      });
+      video.srcObject = stream;
+      video.addEventListener('loadedmetadata', () => {
+        // Size the canvas backing buffer exactly once, when we actually
+        // know the camera's native resolution. Resizing a canvas on every
+        // frame (as a previous version did) clears and reallocates its
+        // entire buffer each time, which is expensive enough to stall the
+        // main thread on tablet-class hardware — that's what looked like
+        // a frozen camera.
+        overlay.width = video.videoWidth;
+        overlay.height = video.videoHeight;
+        canvasSized = true;
+      }, { once: true });
+      await video.play();
+      setStatus('Looking for your QR badge…', 'waiting');
+      rafId = requestAnimationFrame(tick);
+
+      // Safety net: if we haven't completed even ONE decode attempt within
+      // 5 seconds of the camera opening, something is silently wrong (a
+      // dead CDN URL that didn't fire onerror, a browser quirk, anything
+      // we haven't anticipated) — surface that instead of leaving the
+      // person staring at "Looking for your QR badge…" forever with no
+      // way to know what's wrong or what to do about it.
+      watchdogId = setTimeout(() => {
+        if (decodeAttempts === 0 && scanning) {
+          setStatus('Scanner isn\'t responding. Tap Try Again, or reload this page.', 'error');
+          retryBtn.style.display = 'block';
+        }
+      }, 5000);
+    } catch (err) {
+      setStatus('Camera access denied or unavailable. Please allow camera permission and try again.', 'error');
+      retryBtn.style.display = 'block';
+    }
+  }
+
+  function tick(now) {
+    if (!scanning) return;
+
+    if (canvasSized && video.readyState === video.HAVE_ENOUGH_DATA && now - lastDecodeAt >= DECODE_INTERVAL_MS) {
+      lastDecodeAt = now;
+      try {
+        ctx.drawImage(video, 0, 0, overlay.width, overlay.height);
+        const imageData = ctx.getImageData(0, 0, overlay.width, overlay.height);
+
+        const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'dontInvert'
+        });
+        decodeAttempts++;
+
+        if (code && code.data) {
+          handleDecoded(code.data);
+          return; // stop the loop — handleDecoded takes over
+        }
+      } catch (err) {
+        console.error('QR decode error:', err);
+        setStatus('Having trouble reading the camera feed — still trying…', 'error');
+      }
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function handleDecoded(text) {
+    if (text !== EXPECTED_TOKEN) {
+      setStatus('This QR badge does not match your account. Present your own ID.', 'error');
+      // keep scanning — maybe the wrong badge was held up by mistake
+      rafId = requestAnimationFrame(tick);
+      return;
+    }
+
+    setStatus('Badge recognized! Capturing photo…', 'found');
+
+    // Capture the current frame as the verification photo (canvas already
+    // has the latest frame drawn onto it from the decode loop above).
+    const photoDataUrl = overlay.toDataURL('image/jpeg', 0.85);
+
+    stopCamera();
+    submitScan(text, photoDataUrl);
+  }
+
+  async function submitScan(qrText, photoDataUrl) {
+    try {
+      const resp = await fetch('{{ url_for("scan.submit") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qr_text: qrText, photo: photoDataUrl })
+      });
+      const result = await resp.json();
+
+      if (result.success) {
+        setStatus('✓ ' + result.message, 'success');
+        cancelBtn.textContent = 'Done';
+        setTimeout(() => { window.location.href = '{{ url_for("scan.identify") }}'; }, 2500);
+      } else {
+        setStatus(result.message || 'Could not log attendance. Please try again.', 'error');
+        retryBtn.style.display = 'block';
+      }
+    } catch (err) {
+      setStatus('Network error while logging attendance. Please try again.', 'error');
+      retryBtn.style.display = 'block';
+    }
+  }
+
+  window.addEventListener('beforeunload', stopCamera);
+  startCamera();
+})();
+</script>
+{% endblock %}

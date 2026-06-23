@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block title %}QR Badge — {{ staff.first_name }} {{ staff.last_name }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">🪪 QR Badge Management</div>
+    <div class="page-subtitle">{{ staff.first_name }} {{ staff.last_name }} — {{ staff.position }} · {{ staff.staff_no }}</div>
+  </div>
+  <a href="{{ url_for('admin.staff_list') }}" class="btn btn-secondary">← Back to Staff</a>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">
+
+  <!-- Printable Badge -->
+  <div class="card">
+    <div class="card-header">Printable ID Badge</div>
+    <div class="card-body" style="text-align:center;">
+      {% if qr_data_url %}
+        <div class="qr-container" id="printableBadge">
+          <div style="font-weight:700; color:var(--teal-dk); font-size:.95rem; margin-bottom:.5rem;">
+            Green Bay Pediatric Therapy Center
+          </div>
+          <img src="{{ qr_data_url }}" alt="QR Code for {{ staff.first_name }}"/>
+          <div class="qr-label">
+            {{ staff.first_name }} {{ staff.last_name }}<br>
+            <span class="text-mono">{{ staff.staff_no }}</span><br>
+            <span class="text-muted" style="font-size:.78rem;">{{ staff.position }}</span>
+          </div>
+        </div>
+        <button class="btn btn-secondary mt-2" onclick="window.print()">🖨️ Print Badge</button>
+        <p class="text-muted mt-2" style="font-size:0.8rem;">
+          This QR badge does not expire. Print it once — staff present this same
+          badge to the tablet camera every time they clock in or out.
+        </p>
+      {% else %}
+        <div class="empty-state">
+          <div class="big-icon">🪪</div>
+          <p>
+            {% if staff.qr_revoked %}
+              This staff member's QR badge has been revoked.
+            {% else %}
+              No QR badge has been issued yet.
+            {% endif %}
+          </p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Badge Actions -->
+  <div class="card">
+    <div class="card-header">Badge Actions</div>
+    <div class="card-body">
+      <p class="text-muted mb-2">
+        Regenerating prints a brand-new badge and immediately invalidates the old one —
+        use this if a badge is lost or compromised. Revoking blocks scanning without
+        issuing a replacement.
+      </p>
+
+      <form method="post" class="mb-2">
+        <input type="hidden" name="action" value="regenerate">
+        <button type="submit" class="btn btn-primary btn-lg" style="width:100%;">
+          🔄 Generate New Badge
+        </button>
+      </form>
+
+      {% if staff.qr_token and not staff.qr_revoked %}
+      <form method="post">
+        <input type="hidden" name="action" value="revoke">
+        <button type="submit" class="btn btn-danger" style="width:100%;"
+                onclick="return confirm('Revoke this QR badge? The staff member will not be able to scan in until a new badge is issued.');">
+          🚫 Revoke Badge
+        </button>
+      </form>
+      {% endif %}
+
+      <hr class="divider"/>
+
+      <div>
+        <h4 style="font-size:0.875rem; font-weight:600; margin-bottom:0.5rem;">Badge Info</h4>
+        <table style="width:100%; font-size:0.85rem;">
+          <tr>
+            <td class="text-muted" style="padding:4px 0;">Token:</td>
+            <td class="text-mono">
+              {% if staff.qr_token %}{{ staff.qr_token[:20] }}…{% else %}—{% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td class="text-muted" style="padding:4px 0;">Issued:</td>
+            <td>{{ (staff.qr_issued_at or '—')[:16] }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted" style="padding:4px 0;">Status:</td>
+            <td>
+              {% if staff.qr_revoked %}
+                <span class="badge badge-danger">Revoked</span>
+              {% elif staff.qr_token %}
+                <span class="badge badge-success">Active — no expiry</span>
+              {% else %}
+                <span class="badge badge-secondary">Not issued</span>
+              {% endif %}
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <hr class="divider"/>
+
+      <div class="card" style="background:var(--teal-lt); border:1px solid var(--teal);">
+        <div class="card-body" style="padding:0.75rem;">
+          <strong style="color:var(--teal-dk);">How attendance works:</strong>
+          <ol style="margin-top:0.5rem; padding-left:1.2rem; font-size:0.85rem; color:var(--teal-dk);">
+            <li>Print this badge once and give it to the staff member.</li>
+            <li>On the tablet, staff opens the Attendance Scan Portal.</li>
+            <li>They enter their Staff No. + PIN.</li>
+            <li>The camera opens — they present this badge; a verification photo is captured automatically the moment it's recognized.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

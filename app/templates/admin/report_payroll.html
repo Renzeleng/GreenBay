@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block title %}Payroll Report{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">📑 Payroll Report</div>
+    <div class="page-subtitle">Payroll summary for the selected period.</div>
+  </div>
+  <a href="{{ url_for('admin.reports') }}" class="btn btn-secondary">← Audit Log</a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="get" style="display:flex; gap:1rem; align-items:flex-end;">
+      <div class="form-group" style="margin:0; flex:1;">
+        <label>Period Start</label>
+        <input type="date" name="date_from" value="{{ date_from }}"/>
+      </div>
+      <div class="form-group" style="margin:0; flex:1;">
+        <label>Period End</label>
+        <input type="date" name="date_to" value="{{ date_to }}"/>
+      </div>
+      <button type="submit" class="btn btn-primary">Generate Report</button>
+    </form>
+  </div>
+</div>
+
+{% if records %}
+<div class="stats-grid" style="grid-template-columns: repeat(3,1fr);">
+  <div class="stat-card">
+    <div class="stat-icon blue">📄</div>
+    <div>
+      <div class="stat-value">{{ records|length }}</div>
+      <div class="stat-label">Payroll Records</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon teal">💹</div>
+    <div>
+      <div class="stat-value">₱{{ "%.0f"|format(total_gross) }}</div>
+      <div class="stat-label">Total Gross Pay</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">💰</div>
+    <div>
+      <div class="stat-value">₱{{ "%.0f"|format(total_net) }}</div>
+      <div class="stat-label">Total Net Pay</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">
+    Payroll Records ({{ date_from }} – {{ date_to }})
+  </div>
+  <div class="table-wrap">
+    {% if records %}
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Staff</th><th>Pay Period</th>
+          <th class="text-right">Gross Pay</th><th class="text-right">Deductions</th>
+          <th class="text-right">Net Pay</th><th>Status</th><th>Payslip</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td class="text-muted">{{ r.id }}</td>
+          <td><strong>{{ r.staff_name }}</strong><br><span class="text-muted">{{ r.position }}</span></td>
+          <td>{{ r.pay_period_start }}<br>→ {{ r.pay_period_end }}</td>
+          <td class="text-right">₱{{ "%.2f"|format(r.gross_pay) }}</td>
+          <td class="text-right" style="color:var(--danger);">-₱{{ "%.2f"|format(r.total_deductions) }}</td>
+          <td class="text-right"><strong>₱{{ "%.2f"|format(r.net_pay) }}</strong></td>
+          <td>
+            <span class="badge badge-{{ 'success' if r.status == 'released' else ('warning' if r.status == 'approved' else 'secondary') }}">
+              {{ r.status.title() }}
+            </span>
+          </td>
+          <td>
+            {% if r.is_released %}
+              <span class="badge badge-success">✓ Issued</span>
+            {% else %}
+              <span class="badge badge-secondary">Pending</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('admin.payroll_delete', payroll_id=r.id) }}"
+                  onsubmit="return confirm('Remove this payroll record? This cannot be undone, but will be logged in the System Audit Log.');">
+              <button type="submit" class="btn btn-sm btn-danger">🗑️ Remove</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        <!-- Totals row -->
+        <tr style="border-top:2px solid var(--teal); font-weight:700; background:var(--teal-lt);">
+          <td colspan="3" style="padding:10px 8px; color:var(--teal-dk);">TOTALS</td>
+          <td class="text-right" style="padding:10px 8px;">₱{{ "%.2f"|format(total_gross) }}</td>
+          <td class="text-right" style="color:var(--danger); padding:10px 8px;">
+            -₱{{ "%.2f"|format(records|sum(attribute='total_deductions')) }}
+          </td>
+          <td class="text-right" style="color:var(--teal); padding:10px 8px;">₱{{ "%.2f"|format(total_net) }}</td>
+          <td colspan="3"></td>
+        </tr>
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="big-icon">📑</div>
+      No payroll records found for the selected period.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

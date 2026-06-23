@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}Attendance Scan Portal{% endblock %}
+
+{% block no_nav_content %}
+<style>
+  .scan-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, #1f9d5e 0%, #1c7a4d 100%);
+    padding: 1.5rem;
+  }
+  .scan-card {
+    background: #fff;
+    border-radius: 24px;
+    padding: 2.75rem 2.5rem;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.25);
+  }
+  .scan-logo {
+    width: 84px; height: 84px;
+    background: #eefcf3;
+    border: 3px solid #1f9d5e;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.25rem;
+  }
+  .scan-logo svg {
+    width: 40px;
+    height: 40px;
+    color: #1f9d5e;
+    display: block;
+  }
+  .scan-card h1 {
+    text-align: center;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #1a2b2b;
+    margin: 0 0 .35rem;
+  }
+  .scan-card p.lead {
+    text-align: center;
+    color: #7c8a8a;
+    font-size: .9rem;
+    margin: 0 0 2rem;
+  }
+  .field-label {
+    display: block;
+    font-size: .85rem;
+    font-weight: 600;
+    color: #1a2b2b;
+    margin-bottom: .45rem;
+  }
+  .input-wrap { position: relative; margin-bottom: 1.25rem; }
+  .input-wrap .icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9aa6a6;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .input-wrap .icon svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+  }
+  .input-wrap input {
+    width: 100%;
+    padding: .95rem 1rem .95rem 2.6rem;
+    border: 1.5px solid #e3e8e8;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    letter-spacing: .02em;
+    font-family: var(--font);
+    background: #fafbfb;
+  }
+  .input-wrap input:focus { outline: none; border-color: #1f9d5e; background: #fff; }
+  .scan-submit-btn {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(135deg, #28b56b 0%, #1f9d5e 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: .5rem;
+    font-family: var(--font);
+  }
+  .scan-submit-btn:hover { filter: brightness(1.06); }
+  .back-link {
+    display: block;
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: .85rem;
+    color: #6c8a7a;
+    text-decoration: none;
+  }
+  .back-link:hover { text-decoration: underline; }
+</style>
+
+<div class="scan-page">
+  <div class="scan-card">
+    <div class="scan-logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3.5a2.5 2.5 0 0 1 2.45 2h1.55A2.5 2.5 0 0 1 18.5 8v9A2.5 2.5 0 0 1 16 19.5H8A2.5 2.5 0 0 1 5.5 17V8A2.5 2.5 0 0 1 8 5.5h1.55A2.5 2.5 0 0 1 12 3.5Z"/>
+        <path d="M10 10h4M10 13h4M10 16h2.5"/>
+      </svg>
+    </div>
+    <h1>Attendance Scan Portal</h1>
+    <p class="lead">Enter your Staff No. and PIN to continue</p>
+
+    {% if error %}
+    <div class="alert alert-danger" style="margin-bottom:1.25rem;">{{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+      <label class="field-label">Staff No.</label>
+      <div class="input-wrap">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 11h16"/>
+            <path d="M6 11V7a6 6 0 1 1 12 0v4"/>
+            <rect x="5" y="11" width="14" height="8" rx="2"/>
+          </svg>
+        </span>
+        <input type="text" name="staff_no" placeholder="e.g. GB-0001" autofocus
+               value="{{ request.form.get('staff_no','') }}" required autocomplete="off">
+      </div>
+
+      <label class="field-label">Attendance PIN</label>
+      <div class="input-wrap">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="11" width="16" height="9" rx="2"/>
+            <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
+          </svg>
+        </span>
+        <input type="password" name="pin" placeholder="••••" inputmode="numeric"
+               pattern="[0-9]*" maxlength="8" required autocomplete="off">
+      </div>
+
+      <button type="submit" class="scan-submit-btn">Continue to Camera →</button>
+    </form>
+
+    <a href="{{ url_for('auth.login') }}" class="back-link">← Back to Welcome Page</a>
+  </div>
+</div>
+{% endblock %}

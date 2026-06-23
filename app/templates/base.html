@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Green Bay{% endblock %} — QR Attendance & Payroll</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='branding/icon_only.png') }}">
+  <style>
+    /* ── CSS custom properties ──
+       Palette sampled directly from the Green Bay Pediatric Therapy
+       Center logo: dark teal tree, sage-green canopy, peach hand,
+       terracotta outline (their real recurring accent/CTA color). */
+    :root {
+      --teal:      #5A8C84;
+      --teal-dk:   #3F6B63;
+      --teal-lt:   #E7EFEA;
+      --teal-mid:  #71A097;
+      --sage:      #B0CA8B;
+      --sage-lt:   #EEF3E3;
+      --accent:    #D36F34;
+      --accent-dk: #B0571F;
+      --accent-lt: #FBE7D7;
+      --danger:    #e74c3c;
+      --warning:   #f39c12;
+      --info:      #2980b9;
+      --gray:      #FBF3E3;
+      --gray-dk:   #7A6F60;
+      --text:      #3A352E;
+      --border:    #E6D9C3;
+      --white:     #ffffff;
+      --shadow:    0 2px 12px rgba(63,107,99,0.08);
+      --radius:    10px;
+      --font:      'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--gray);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Navbar ── */
+    .navbar {
+      background: var(--teal-dk);
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .navbar-brand {
+      color: var(--white);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .navbar-brand .logo-icon {
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .navbar-brand .logo-icon img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+    }
+    .navbar-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      list-style: none;
+    }
+    .navbar-nav a {
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      padding: 0.4rem 0.75rem;
+      border-radius: 5px;
+      font-size: 0.875rem;
+      transition: background 0.15s, color 0.15s;
+    }
+    .navbar-nav a:hover, .navbar-nav a.active {
+      background: rgba(255,255,255,0.15);
+      color: var(--white);
+    }
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.8rem;
+    }
+    .navbar-right .btn-logout {
+      background: rgba(255,255,255,0.15);
+      color: var(--white);
+      border: none;
+      padding: 0.35rem 0.75rem;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .navbar-right .btn-logout:hover { background: rgba(255,255,255,0.25); }
+
+    /* ── Sidebar ── */
+    .app-layout {
+      display: flex;
+      flex: 1;
+      min-height: calc(100vh - 56px);
+    }
+    .sidebar {
+      width: 220px;
+      min-width: 220px;
+      background: var(--white);
+      border-right: 1px solid var(--border);
+      padding: 1rem 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-section {
+      padding: 0.25rem 0.75rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gray-dk);
+      margin-top: 0.75rem;
+    }
+    .sidebar a {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.55rem 1rem;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.875rem;
+      border-left: 3px solid transparent;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .sidebar a:hover { background: var(--teal-lt); color: var(--teal); }
+    .sidebar a.active {
+      background: var(--teal-lt);
+      color: var(--teal);
+      border-left-color: var(--teal);
+      font-weight: 600;
+    }
+    .sidebar a .icon { font-size: 1rem; width: 20px; text-align: center; }
+
+    /* ── Main content ── */
+    .main-content {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .page-title { font-size: 1.4rem; font-weight: 700; color: var(--teal-dk); }
+    .page-subtitle { color: var(--gray-dk); font-size: 0.85rem; margin-top: 2px; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 1.25rem;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 0.9rem;
+      background: var(--teal-lt);
+      color: var(--teal-dk);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+    }
+    .card-header-label {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .card-header-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+    .card-header-icon svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+    .card-body { padding: 1.25rem; }
+
+    /* ── Stat cards ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .stat-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .stat-icon {
+      width: 48px; height: 48px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+    .stat-icon.teal    { background: var(--teal-lt); }
+    .stat-icon.green   { background: var(--sage-lt); }
+    .stat-icon.orange  { background: var(--accent-lt); }
+    .stat-icon.blue    { background: #d6eaf8; }
+    .stat-value { font-size: 1.6rem; font-weight: 700; color: var(--teal-dk); line-height: 1; }
+    .stat-label { font-size: 0.75rem; color: var(--gray-dk); margin-top: 4px; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 1rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-family: var(--font);
+      font-weight: 500;
+      text-decoration: none;
+      transition: filter 0.15s, transform 0.1s;
+    }
+    .btn:hover { filter: brightness(0.92); }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary   { background: var(--teal); color: var(--white); }
+    .btn-success   { background: var(--sage); color: var(--teal-dk); }
+    .btn-danger    { background: var(--danger); color: var(--white); }
+    .btn-warning   { background: var(--warning); color: var(--white); }
+    .btn-secondary { background: var(--gray-dk); color: var(--white); }
+    .btn-accent    { background: var(--accent); color: var(--white); }
+    .btn-outline   {
+      background: transparent;
+      border: 1.5px solid var(--teal);
+      color: var(--teal);
+    }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.8rem; }
+    .btn-lg { padding: 0.65rem 1.5rem; font-size: 1rem; }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    thead { background: var(--teal-lt); }
+    thead th {
+      padding: 0.7rem 0.85rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--teal-dk);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    tbody tr:hover { background: #fafbfc; }
+    tbody td { padding: 0.65rem 0.85rem; vertical-align: middle; }
+    .text-right { text-align: right !important; }
+    .text-center { text-align: center !important; }
+
+    /* ── Forms ── */
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--gray-dk); }
+    input[type=text], input[type=password], input[type=email],
+    input[type=number], input[type=date], input[type=datetime-local],
+    select, textarea {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-family: var(--font);
+      background: var(--white);
+      color: var(--text);
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(90,140,132,0.15);
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+    .form-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+
+    /* ── Alerts / Flashes ── */
+    .alerts { margin-bottom: 1rem; }
+    .alert {
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .alert-success { background: #d4efdf; color: #1e8449; border-left: 4px solid #27ae60; }
+    .alert-danger  { background: #fadbd8; color: #922b21; border-left: 4px solid #e74c3c; }
+    .alert-warning { background: #fdebd0; color: #784212; border-left: 4px solid #f39c12; }
+    .alert-info    { background: #d6eaf8; color: #1a5276; border-left: 4px solid #2980b9; }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.55rem;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-success  { background: #d4efdf; color: #1e8449; }
+    .badge-danger   { background: #fadbd8; color: #922b21; }
+    .badge-warning  { background: #fdebd0; color: #784212; }
+    .badge-info     { background: #d6eaf8; color: #1a5276; }
+    .badge-secondary{ background: #e9ecef; color: #495057; }
+    .badge-teal     { background: var(--teal-lt); color: var(--teal-dk); }
+
+    /* ── Misc ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+    .mt-1 { margin-top: 0.5rem; }
+    .mt-2 { margin-top: 1rem; }
+    .mt-3 { margin-top: 1.5rem; }
+    .mb-1 { margin-bottom: 0.5rem; }
+    .mb-2 { margin-bottom: 1rem; }
+    .text-muted { color: var(--gray-dk); font-size: 0.85rem; }
+    .text-mono  { font-family: 'Consolas', monospace; font-size: 0.85rem; }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--gray-dk);
+    }
+    .empty-state .big-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--teal-lt);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 1rem auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── QR display ── */
+    .qr-container {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--white);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      border: 2px solid var(--teal-lt);
+    }
+    .qr-container img, .qr-container svg {
+      max-width: 240px;
+      width: 100%;
+      display: block;
+    }
+    .qr-label {
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--gray-dk);
+      text-align: center;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .form-row, .form-row-3, .form-row-4 { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  {% if current_username %}
+  <nav class="navbar">
+    <a href="{{ url_for('admin.dashboard') }}" class="navbar-brand">
+      <div class="logo-icon"><img src="{{ url_for('static', filename='branding/icon_only.png') }}" alt="Green Bay"/></div>
+      <span>{{ clinic_name }}</span>
+    </a>
+    <div class="navbar-right">
+      <span>👤 {{ current_username }} &nbsp;<span class="badge badge-teal">{{ current_user_role }}</span></span>
+      <a href="{{ url_for('auth.logout') }}" class="btn-logout">Logout</a>
+    </div>
+  </nav>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-section">Main</div>
+      <a href="{{ url_for('admin.dashboard') }}" class="{{ 'active' if request.endpoint == 'admin.dashboard' }}">
+        <span class="icon">📊</span> Dashboard
+      </a>
+      <div class="sidebar-section">Staff</div>
+      <a href="{{ url_for('admin.staff_list') }}" class="{{ 'active' if 'staff' in request.endpoint }}">
+        <span class="icon">👥</span> Staff Records
+      </a>
+      <div class="sidebar-section">Attendance</div>
+      <a href="{{ url_for('admin.attendance_manual') }}" class="{{ 'active' if request.endpoint == 'admin.attendance_manual' }}">
+        <span class="icon">✍️</span> Manual Entry
+      </a>
+      <a href="{{ url_for('admin.attendance_list') }}" class="{{ 'active' if request.endpoint == 'admin.attendance_list' }}">
+        <span class="icon">📋</span> Attendance Logs
+      </a>
+      <div class="sidebar-section">Payroll</div>
+      <a href="{{ url_for('admin.payroll_compute') }}" class="{{ 'active' if request.endpoint == 'admin.payroll_compute' }}">
+        <span class="icon">⚙️</span> Compute Payroll
+      </a>
+      <a href="{{ url_for('admin.payroll_list') }}" class="{{ 'active' if request.endpoint in ('admin.payroll_list','admin.payroll_detail') }}">
+        <span class="icon">💰</span> Payroll Records
+      </a>
+      <div class="sidebar-section">Reports</div>
+      <a href="{{ url_for('admin.report_attendance') }}" class="{{ 'active' if request.endpoint == 'admin.report_attendance' }}">
+        <span class="icon">📅</span> Attendance Report
+      </a>
+      <a href="{{ url_for('admin.report_payroll') }}" class="{{ 'active' if request.endpoint == 'admin.report_payroll' }}">
+        <span class="icon">📑</span> Payroll Report
+      </a>
+      <a href="{{ url_for('admin.reports') }}" class="{{ 'active' if request.endpoint == 'admin.reports' }}">
+        <span class="icon">🔍</span> Audit Log
+      </a>
+    </aside>
+    <main class="main-content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="alerts">
+            {% for cat, msg in messages %}
+              <div class="alert alert-{{ cat }}">
+                {% if cat == 'success' %}✅{% elif cat == 'danger' %}❌{% elif cat == 'warning' %}⚠️{% else %}ℹ️{% endif %}
+                {{ msg }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  {% else %}
+  {% block no_nav_content %}{% endblock %}
+  {% endif %}
+</body>
+</html>
